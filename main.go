@@ -16,7 +16,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 
-	"github.com/mirzaaghazadeh/JS-GitDif-Watcher/watcher"
+	"github.com/mirzaaghazadeh/jsdif/watcher"
 )
 
 type JsWatcher struct {
@@ -26,9 +26,10 @@ type JsWatcher struct {
 	timeout    int
 	status     string
 	stopChan   chan struct{}
+	port       string
 }
 
-func NewJsWatcher(url string, interval time.Duration) *JsWatcher {
+func NewJsWatcher(url string, interval time.Duration, port string) *JsWatcher {
 	// Create a sanitized directory name from the URL
 	dirName := strings.ReplaceAll(strings.TrimPrefix(strings.TrimPrefix(url, "http://"), "https://"), "/", "_")
 	gitRepoDir := filepath.Join("js_snapshots", dirName)
@@ -40,6 +41,7 @@ func NewJsWatcher(url string, interval time.Duration) *JsWatcher {
 		status:     "active",
 		timeout:    0,
 		stopChan:   make(chan struct{}),
+		port:       port,
 	}
 }
 
@@ -247,7 +249,7 @@ func (w *JsWatcher) Start() {
 					w.status = "disabled"
 					// Update status in configuration
 					client := &http.Client{}
-					urlStr := fmt.Sprintf("http://localhost:9023/api/update-status?url=%s&status=disabled", url.QueryEscape(w.url))
+					urlStr := fmt.Sprintf("http://localhost:%s/api/update-status?url=%s&status=disabled", w.port, url.QueryEscape(w.url))
 					req, err := http.NewRequest(http.MethodPut, urlStr, nil)
 					if err == nil {
 						if _, err := client.Do(req); err != nil {
@@ -280,7 +282,7 @@ func main() {
 	)
 
 	// Setup CLI
-	flag.StringVar(&port, "p", "9023", "Web UI port (e.g., 9093)")
+	flag.StringVar(&port, "p", "9093", "Web UI port")
 
 	// Parse command line arguments
 	flag.Parse()
@@ -303,5 +305,6 @@ func main() {
 	}
 
 	// Start web server with provided port
-	startWebServer(":" + port)
+	log.Printf("Starting web server on port %s", port)
+	startWebServer(":"+port, port)
 }

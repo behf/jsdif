@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mirzaaghazadeh/JS-GitDif-Watcher/watcher"
+	"github.com/mirzaaghazadeh/jsdif/watcher"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -39,7 +39,10 @@ func formatInterval(d time.Duration) string {
 	}
 }
 
-func startWebServer(addr string) {
+var serverPort string
+
+func startWebServer(addr string, port string) {
+	serverPort = port
 	http.HandleFunc("/api/urls", handleUrls)
 	http.HandleFunc("/api/update-status", handleUpdateStatus)
 	http.HandleFunc("/api/add-url", handleAddUrl)
@@ -65,7 +68,7 @@ func startWatcher(url string, interval time.Duration) {
 	}
 
 	// Create and start new watcher
-	watcher := NewJsWatcher(url, interval)
+	watcher := NewJsWatcher(url, interval, serverPort)
 	activeWatchers[url] = watcher
 	go watcher.Start()
 }
@@ -388,7 +391,7 @@ func handleAddUrl(w http.ResponseWriter, r *http.Request) {
 
 	// Create and start the new watcher if status is active
 	if config.Status == "active" {
-		jsw := NewJsWatcher(config.URL, config.Interval)
+		jsw := NewJsWatcher(config.URL, config.Interval, serverPort)
 		jsw.timeout = config.Timeout
 		jsw.status = config.Status
 		activeWatchers[config.URL] = jsw
@@ -487,7 +490,7 @@ func handleEditUrl(w http.ResponseWriter, r *http.Request) {
 		delete(activeWatchers, newConfig.URL)
 		// Start new watcher with updated config if status is active
 		if newConfig.Status == "active" {
-			jsw := NewJsWatcher(newConfig.URL, newConfig.Interval)
+			jsw := NewJsWatcher(newConfig.URL, newConfig.Interval, serverPort)
 			jsw.timeout = newConfig.Timeout
 			jsw.status = newConfig.Status
 			activeWatchers[newConfig.URL] = jsw

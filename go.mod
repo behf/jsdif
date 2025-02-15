@@ -1,4 +1,4 @@
-module github.com/mirzaaghazadeh/JS-GitDif-Watcher
+module github.com/mirzaaghazadeh/jsdif
 
 go 1.21
 
