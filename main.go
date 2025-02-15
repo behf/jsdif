@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -276,26 +275,33 @@ func (w *JsWatcher) Start() {
 }
 
 func main() {
-	var (
-		port string
-		cmd  string
-	)
+	port := "9093" // default port
 
-	// Setup CLI
-	flag.StringVar(&port, "p", "9093", "Web UI port")
-
-	// Parse command line arguments
-	flag.Parse()
-
-	// Get the command (first argument after flags)
-	args := flag.Args()
-	if len(args) > 0 {
-		cmd = args[0]
+	// Check arguments
+	args := os.Args[1:]
+	if len(args) == 0 {
+		fmt.Println("Usage: jsdif [-p PORT] run")
+		os.Exit(1)
 	}
 
-	// Validate command
-	if cmd != "run" {
-		fmt.Println("Usage: jsdif run -p PORT")
+	// Look for -p flag and ensure "run" command exists
+	var foundRun bool
+	for i := 0; i < len(args); i++ {
+		if args[i] == "-p" && i+1 < len(args) {
+			// Ensure port value is not a flag or the run command
+			if args[i+1] == "run" || strings.HasPrefix(args[i+1], "-") {
+				fmt.Println("Invalid port value")
+				os.Exit(1)
+			}
+			port = args[i+1]
+			i++ // Skip the port value
+		} else if args[i] == "run" {
+			foundRun = true
+		}
+	}
+
+	if !foundRun {
+		fmt.Println("Usage: jsdif [-p PORT] run")
 		os.Exit(1)
 	}
 
@@ -304,7 +310,7 @@ func main() {
 		log.Fatalf("Failed to create js_snapshots directory: %v", err)
 	}
 
-	// Start web server with provided port
+	// Debug message to ensure the correct port
 	log.Printf("Starting web server on port %s", port)
 	startWebServer(":"+port, port)
 }

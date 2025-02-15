@@ -54,7 +54,7 @@ func startWebServer(addr string, port string) {
 	// Serve static files
 	http.Handle("/", http.FileServer(http.Dir("web")))
 
-	log.Printf("Starting web server on %s", addr)
+	// log.Printf("%s", addr)
 	log.Fatal(http.ListenAndServe(addr, nil))
 }
 
