@@ -1,4 +1,6 @@
-# JS-GitDif-Watcher 🕵️‍♂️ V.1.0.0
+# JS GitDif Watcher 🕵️‍♂️ V.1.0.0
+
+![Alt Text](showcase.gif)
 
 A powerful JavaScript monitoring tool for bug bounty hunters. Track changes in JavaScript files across websites, detect new attack surfaces, and stay ahead of security vulnerabilities.
 
