@@ -4,7 +4,6 @@
 *.dll
 *.so
 *.dylib
-watchtover-gitdif
 .DS_Store
 
 # Test binary, built with `go test -c`
