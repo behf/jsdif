@@ -20,3 +20,4 @@ watchtover-gitdif
 
 # Project specific
 js_snapshots/
+watchers.json

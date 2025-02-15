@@ -15,6 +15,8 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
+
+	"github.com/watchtover-gitdif/watcher"
 )
 
 type JsWatcher struct {
@@ -149,7 +151,7 @@ func (w *JsWatcher) saveAndCommit(jsFiles []string) error {
 	log.Printf("Created commit for detected changes: %s", commit.String())
 
 	// Send Telegram notification if enabled
-	configs, err := loadWatcherConfigs()
+	configs, err := watcher.LoadWatcherConfigs()
 	if err != nil {
 		log.Printf("Error loading configs for notification: %v", err)
 		return nil
@@ -164,7 +166,7 @@ func (w *JsWatcher) saveAndCommit(jsFiles []string) error {
 				time.Now().Format("2006-01-02 15:04:05"),
 				commit.String()[:8],
 			)
-			if err := sendTelegramNotification(
+			if err := watcher.SendTelegramNotification(
 				config.Notification.Token,
 				config.Notification.ChatID,
 				message,

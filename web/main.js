@@ -146,12 +146,16 @@ class GitDifUI {
         return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
     }
 
-    formatInterval(seconds) {
-        if (seconds === 60) return 'Every Minute';
-        if (seconds === 3600) return 'Hourly';
-        if (seconds === 86400) return 'Daily';
-        if (seconds === 604800) return 'Weekly';
-        return `${seconds} seconds`;
+    formatInterval(minutes) {
+        if (minutes === 1) return 'Every Minute';
+        if (minutes === 60) return 'Hourly';
+        if (minutes === 1440) return 'Daily';
+        if (minutes === 10080) return 'Weekly';
+        if (minutes < 60) return `${minutes} minutes`;
+        const hours = Math.floor(minutes / 60);
+        const remainingMinutes = minutes % 60;
+        if (remainingMinutes === 0) return `${hours} hours`;
+        return `${hours}h ${remainingMinutes}m`;
     }
 
     async handleAddUrl(e) {
