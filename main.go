@@ -16,7 +16,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 
-	"github.com/watchtover-gitdif/watcher"
+	"github.com/mirzaaghazadeh/JS-GitDif-Watcher/watcher"
 )
 
 type JsWatcher struct {

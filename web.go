@@ -1,4 +1,4 @@
-package main
+ثpackage main
 
 import (
 	"encoding/json"
@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/watchtover-gitdif/watcher"
+	"github.com/mirzaaghazadeh/JS-GitDif-Watcher/watcher"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
