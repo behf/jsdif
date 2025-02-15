@@ -275,33 +275,49 @@ func (w *JsWatcher) Start() {
 }
 
 func main() {
+	// Define flags
 	port := "9093" // default port
+	var username, password string
 
 	// Check arguments
 	args := os.Args[1:]
 	if len(args) == 0 {
-		fmt.Println("Usage: jsdif [-p PORT] run")
+		fmt.Println("Usage: jsdif [-p PORT] [-u USERNAME] [-p PASSWORD] run")
 		os.Exit(1)
 	}
 
-	// Look for -p flag and ensure "run" command exists
+	// Look for flags and ensure "run" command exists
 	var foundRun bool
 	for i := 0; i < len(args); i++ {
-		if args[i] == "-p" && i+1 < len(args) {
-			// Ensure port value is not a flag or the run command
-			if args[i+1] == "run" || strings.HasPrefix(args[i+1], "-") {
+		switch args[i] {
+		case "-p":
+			if i+1 >= len(args) || args[i+1] == "run" || strings.HasPrefix(args[i+1], "-") {
 				fmt.Println("Invalid port value")
 				os.Exit(1)
 			}
 			port = args[i+1]
-			i++ // Skip the port value
-		} else if args[i] == "run" {
+			i++ // Skip the value
+		case "-u":
+			if i+1 >= len(args) || args[i+1] == "run" || strings.HasPrefix(args[i+1], "-") {
+				fmt.Println("Invalid username value")
+				os.Exit(1)
+			}
+			username = args[i+1]
+			i++ // Skip the value
+		case "--password":
+			if i+1 >= len(args) || args[i+1] == "run" || strings.HasPrefix(args[i+1], "-") {
+				fmt.Println("Invalid password value")
+				os.Exit(1)
+			}
+			password = args[i+1]
+			i++ // Skip the value
+		case "run":
 			foundRun = true
 		}
 	}
 
 	if !foundRun {
-		fmt.Println("Usage: jsdif [-p PORT] run")
+		fmt.Println("Usage: jsdif [-p PORT] [-u USERNAME] [--password PASSWORD] run")
 		os.Exit(1)
 	}
 
@@ -312,5 +328,5 @@ func main() {
 
 	// Debug message to ensure the correct port
 	log.Printf("Starting web server on port %s", port)
-	startWebServer(":"+port, port)
+	startWebServer(":"+port, port, username, password)
 }

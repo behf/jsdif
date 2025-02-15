@@ -46,22 +46,44 @@ func formatInterval(d time.Duration) string {
 
 var serverPort string
 
-func startWebServer(addr string, port string) {
+func startWebServer(addr string, port string, username string, password string) {
 	serverPort = port
-	http.HandleFunc("/api/urls", handleUrls)
-	http.HandleFunc("/api/update-status", handleUpdateStatus)
-	http.HandleFunc("/api/add-url", handleAddUrl)
-	http.HandleFunc("/api/edit-url", handleEditUrl)
-	http.HandleFunc("/api/delete-url", handleDeleteUrl)
-	http.HandleFunc("/api/commits", handleCommits)
-	http.HandleFunc("/api/diff", handleDiff)
+
+	// Create authentication middleware
+	authMiddleware := func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			if username != "" && password != "" {
+				user, pass, ok := r.BasicAuth()
+				if !ok || user != username || pass != password {
+					w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+					http.Error(w, "Unauthorized", http.StatusUnauthorized)
+					return
+				}
+			}
+			next.ServeHTTP(w, r)
+		}
+	}
+
+	// Register API routes with auth middleware
+	http.HandleFunc("/api/urls", authMiddleware(handleUrls))
+	http.HandleFunc("/api/update-status", authMiddleware(handleUpdateStatus))
+	http.HandleFunc("/api/add-url", authMiddleware(handleAddUrl))
+	http.HandleFunc("/api/edit-url", authMiddleware(handleEditUrl))
+	http.HandleFunc("/api/delete-url", authMiddleware(handleDeleteUrl))
+	http.HandleFunc("/api/commits", authMiddleware(handleCommits))
+	http.HandleFunc("/api/diff", authMiddleware(handleDiff))
 
 	// Serve embedded static files
 	fsys, err := fs.Sub(webFS, "web")
 	if err != nil {
 		log.Fatal(err)
 	}
-	http.Handle("/", http.FileServer(http.FS(fsys)))
+
+	// Create file server handler with auth
+	fileServer := http.FileServer(http.FS(fsys))
+	http.HandleFunc("/", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		fileServer.ServeHTTP(w, r)
+	}))
 
 	// log.Printf("%s", addr)
 	log.Fatal(http.ListenAndServe(addr, nil))

@@ -1,4 +1,4 @@
-# JSDif Watcher 🕵️‍♂️ V.1.0.1
+# JSDif Watcher 🕵️‍♂️ V.1.0.2
 
 ![Alt Text](showcase.gif)
 
@@ -32,9 +32,20 @@ go install github.com/mirzaaghazadeh/jsdif@latest
 
 ### Usage
 
+Basic usage without authentication:
 ```bash
 jsdif run -p 9093
 ```
+
+Optional basic authentication:
+```bash
+jsdif -u admin --password secret -p 9093 run
+```
+
+Available flags:
+- `-p`: Port number (default: 9093)
+- `-u`: (Optional) Username for authentication on web gui
+- `--password`: (Optional) Password for authentication on web gui
 
 Access the web interface at `http://localhost:9093` to start monitoring your targets.
 
@@ -80,6 +91,15 @@ go build -o jsdif
 ```
 
 ## ⚙️ Configuration
+
+### Command Line Options
+
+- **Port**: `-p` flag to set the server port (default: 9093)
+- **Authentication**: Optional basic auth protection
+  - `-u`: Username for web interface access
+  - `--password`: Password for web interface access
+
+### Web Interface Settings
 
 The web interface allows you to configure:
 
