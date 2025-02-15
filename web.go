@@ -1,11 +1,12 @@
 package main
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
-	"path/filepath"
 	"sort"
 	"sync"
 	"time"
@@ -16,6 +17,9 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
+
+//go:embed web
+var webFS embed.FS
 
 var (
 	activeWatchers = make(map[string]*JsWatcher)
@@ -52,9 +56,12 @@ func startWebServer(addr string, port string) {
 	http.HandleFunc("/api/commits", handleCommits)
 	http.HandleFunc("/api/diff", handleDiff)
 
-	// Serve static files from the web directory using OS-agnostic path
-	webDir := http.Dir(filepath.Join(".", "web"))
-	http.Handle("/", http.FileServer(webDir))
+	// Serve embedded static files
+	fsys, err := fs.Sub(webFS, "web")
+	if err != nil {
+		log.Fatal(err)
+	}
+	http.Handle("/", http.FileServer(http.FS(fsys)))
 
 	// log.Printf("%s", addr)
 	log.Fatal(http.ListenAndServe(addr, nil))
