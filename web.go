@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -28,11 +30,44 @@ type CommitsResponse struct {
 	Total   int      `json:"total"`
 }
 
+type NotificationConfig struct {
+	Type    string `json:"type"`    // "telegram"
+	Token   string `json:"token"`   // Bot token
+	ChatID  string `json:"chat_id"` // Chat ID or username
+	Enabled bool   `json:"enabled"`
+}
+
 type WatcherConfig struct {
-	URL      string        `json:"url"`
-	Interval time.Duration `json:"interval"`
-	Status   string        `json:"status"`  // "active" or "disabled"
-	Timeout  int           `json:"timeout"` // timeout in seconds
+	URL          string             `json:"url"`
+	Interval     time.Duration      `json:"interval"` // stored as time.Duration but received as seconds
+	Status       string             `json:"status"`   // "active" or "disabled"
+	Timeout      int                `json:"timeout"`  // timeout in seconds
+	Notification NotificationConfig `json:"notification"`
+}
+
+func sendTelegramNotification(token string, chatID string, message string) error {
+	baseURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", token)
+	data := map[string]string{
+		"chat_id":    chatID,
+		"text":       message,
+		"parse_mode": "HTML",
+	}
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.Post(baseURL, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("telegram API error: %s", string(body))
+	}
+	return nil
 }
 
 var (
@@ -159,10 +194,25 @@ func handleEditUrl(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var newConfig WatcherConfig
-	if err := json.NewDecoder(r.Body).Decode(&newConfig); err != nil {
+	var rawConfig struct {
+		URL          string             `json:"url"`
+		Interval     int                `json:"interval"` // receive as seconds
+		Status       string             `json:"status"`
+		Timeout      int                `json:"timeout"`
+		Notification NotificationConfig `json:"notification"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&rawConfig); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
+	}
+
+	// Convert seconds to time.Duration
+	newConfig := WatcherConfig{
+		URL:          rawConfig.URL,
+		Interval:     time.Duration(rawConfig.Interval) * time.Second,
+		Status:       rawConfig.Status,
+		Timeout:      rawConfig.Timeout,
+		Notification: rawConfig.Notification,
 	}
 
 	configs, err := loadWatcherConfigs()
@@ -216,10 +266,25 @@ func handleAddUrl(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var config WatcherConfig
-	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+	var rawConfig struct {
+		URL          string             `json:"url"`
+		Interval     int                `json:"interval"` // receive as seconds
+		Status       string             `json:"status"`
+		Timeout      int                `json:"timeout"`
+		Notification NotificationConfig `json:"notification"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&rawConfig); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
+	}
+
+	// Convert seconds to time.Duration
+	config := WatcherConfig{
+		URL:          rawConfig.URL,
+		Interval:     time.Duration(rawConfig.Interval) * time.Second,
+		Status:       rawConfig.Status,
+		Timeout:      rawConfig.Timeout,
+		Notification: rawConfig.Notification,
 	}
 
 	// Add new watcher config
@@ -251,9 +316,38 @@ func handleAddUrl(w http.ResponseWriter, r *http.Request) {
 	// Start the new watcher if status is active
 	if config.Status == "active" {
 		startWatcher(config.URL, config.Interval)
+
+		// Send initial notification if enabled
+		if config.Notification.Enabled && config.Notification.Type == "telegram" {
+			message := fmt.Sprintf(
+				"<b>🔍 New URL Monitoring Started</b>\n\nURL: %s\nInterval: %s\nTimeout: %d seconds",
+				config.URL,
+				formatInterval(config.Interval),
+				config.Timeout,
+			)
+			if err := sendTelegramNotification(config.Notification.Token, config.Notification.ChatID, message); err != nil {
+				log.Printf("Failed to send Telegram notification: %v", err)
+			}
+		}
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func formatInterval(d time.Duration) string {
+	seconds := int(d.Seconds())
+	switch seconds {
+	case 60:
+		return "Every Minute"
+	case 3600:
+		return "Hourly"
+	case 86400:
+		return "Daily"
+	case 604800:
+		return "Weekly"
+	default:
+		return fmt.Sprintf("%d seconds", seconds)
+	}
 }
 
 func startWatcher(url string, interval time.Duration) {
@@ -288,10 +382,11 @@ func startWatcher(url string, interval time.Duration) {
 
 // URLInfo represents the information about a URL that is sent to clients
 type URLInfo struct {
-	URL      string        `json:"url"`
-	Status   string        `json:"status"`
-	Interval time.Duration `json:"interval"`
-	Timeout  int           `json:"timeout"`
+	URL          string             `json:"url"`
+	Status       string             `json:"status"`
+	Interval     int                `json:"interval"` // send as seconds
+	Timeout      int                `json:"timeout"`
+	Notification NotificationConfig `json:"notification"`
 }
 
 func handleUrls(w http.ResponseWriter, r *http.Request) {
@@ -304,10 +399,11 @@ func handleUrls(w http.ResponseWriter, r *http.Request) {
 	urlInfos := make([]URLInfo, len(configs))
 	for i, config := range configs {
 		urlInfos[i] = URLInfo{
-			URL:      config.URL,
-			Status:   config.Status,
-			Interval: config.Interval,
-			Timeout:  config.Timeout,
+			URL:          config.URL,
+			Status:       config.Status,
+			Interval:     int(config.Interval.Seconds()),
+			Timeout:      config.Timeout,
+			Notification: config.Notification,
 		}
 	}
 

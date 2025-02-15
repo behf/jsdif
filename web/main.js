@@ -18,11 +18,15 @@ class GitDifUI {
         this.addUrlBtn = document.getElementById('addUrlBtn');
         this.cancelAddUrlBtn = document.getElementById('cancelAddUrl');
         this.addUrlForm = document.getElementById('addUrlForm');
+        this.newNotifyEnabled = document.getElementById('newNotifyEnabled');
+        this.newNotifyFields = document.getElementById('newNotifyFields');
 
         // Edit URL Modal
         this.editUrlModal = document.getElementById('editUrlModal');
         this.editUrlForm = document.getElementById('editUrlForm');
         this.cancelEditUrlBtn = document.getElementById('cancelEditUrl');
+        this.editNotifyEnabled = document.getElementById('editNotifyEnabled');
+        this.editNotifyFields = document.getElementById('editNotifyFields');
 
         // State
         this.currentUrl = '';
@@ -59,10 +63,16 @@ class GitDifUI {
         this.addUrlBtn.addEventListener('click', () => this.showAddUrlModal());
         this.cancelAddUrlBtn.addEventListener('click', () => this.hideAddUrlModal());
         this.addUrlForm.addEventListener('submit', e => this.handleAddUrl(e));
+        this.newNotifyEnabled.addEventListener('change', () => {
+            this.newNotifyFields.style.display = this.newNotifyEnabled.checked ? 'block' : 'none';
+        });
 
         // Edit URL Modal events
         this.cancelEditUrlBtn.addEventListener('click', () => this.hideEditUrlModal());
         this.editUrlForm.addEventListener('submit', e => this.handleEditUrl(e));
+        this.editNotifyEnabled.addEventListener('change', () => {
+            this.editNotifyFields.style.display = this.editNotifyEnabled.checked ? 'block' : 'none';
+        });
 
         // Diff Modal events
         this.closeDiffModal.addEventListener('click', () => this.hideDiffModal());
@@ -76,10 +86,18 @@ class GitDifUI {
         
         // Auto-refresh
         setInterval(() => this.refreshData(), 10000);
+
+        // Initial state for notification fields
+        this.newNotifyFields.style.display = 'none';
+        this.editNotifyFields.style.display = 'none';
     }
 
     showAddUrlModal() {
         this.addUrlModal.classList.remove('hidden');
+        this.newNotifyEnabled.checked = false;
+        this.newNotifyFields.style.display = 'none';
+        document.getElementById('newNotifyToken').value = '';
+        document.getElementById('newNotifyChatID').value = '';
     }
 
     hideAddUrlModal() {
@@ -88,9 +106,23 @@ class GitDifUI {
 
     showEditUrlModal(urlInfo) {
         document.getElementById('editUrlInput').value = urlInfo.url;
-        document.getElementById('editInterval').value = Math.floor(urlInfo.interval / 1e9); // Convert from nanoseconds to seconds and ensure whole number
+        document.getElementById('editInterval').value = urlInfo.interval;
         document.getElementById('editTimeout').value = urlInfo.timeout;
         document.getElementById('editStatus').value = urlInfo.status;
+        
+        // Set notification fields if they exist
+        if (urlInfo.notification) {
+            this.editNotifyEnabled.checked = urlInfo.notification.enabled;
+            document.getElementById('editNotifyToken').value = urlInfo.notification.token || '';
+            document.getElementById('editNotifyChatID').value = urlInfo.notification.chat_id || '';
+            this.editNotifyFields.style.display = urlInfo.notification.enabled ? 'block' : 'none';
+        } else {
+            this.editNotifyEnabled.checked = false;
+            document.getElementById('editNotifyToken').value = '';
+            document.getElementById('editNotifyChatID').value = '';
+            this.editNotifyFields.style.display = 'none';
+        }
+        
         this.editUrlModal.classList.remove('hidden');
     }
 
@@ -108,12 +140,34 @@ class GitDifUI {
         this.diffViewContent.innerHTML = '';
     }
 
+    formatDate(date) {
+        const d = new Date(date);
+        const pad = num => String(num).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    formatInterval(seconds) {
+        if (seconds === 60) return 'Every Minute';
+        if (seconds === 3600) return 'Hourly';
+        if (seconds === 86400) return 'Daily';
+        if (seconds === 604800) return 'Weekly';
+        return `${seconds} seconds`;
+    }
+
     async handleAddUrl(e) {
         e.preventDefault();
         const url = document.getElementById('newUrl').value;
-        const interval = parseInt(document.getElementById('newInterval').value) * 1e9; // Convert to nanoseconds for Go time.Duration
+        const interval = parseInt(document.getElementById('newInterval').value);
         const timeout = parseInt(document.getElementById('newTimeout').value);
         const status = document.getElementById('newStatus').value;
+        const notifyEnabled = this.newNotifyEnabled.checked;
+        
+        const notification = {
+            type: 'telegram',
+            token: document.getElementById('newNotifyToken').value,
+            chat_id: document.getElementById('newNotifyChatID').value,
+            enabled: notifyEnabled
+        };
 
         try {
             const response = await fetch('/api/add-url', {
@@ -121,16 +175,20 @@ class GitDifUI {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ url, interval, timeout, status }),
+                body: JSON.stringify({ url, interval, timeout, status, notification }),
             });
 
             if (response.ok) {
                 this.hideAddUrlModal();
                 this.loadUrls();
                 document.getElementById('newUrl').value = '';
-                document.getElementById('newInterval').value = '10';
+                document.getElementById('newInterval').value = '60';
                 document.getElementById('newTimeout').value = '30';
                 document.getElementById('newStatus').value = 'active';
+                this.newNotifyEnabled.checked = false;
+                document.getElementById('newNotifyToken').value = '';
+                document.getElementById('newNotifyChatID').value = '';
+                this.newNotifyFields.style.display = 'none';
             } else {
                 alert('Failed to add URL');
             }
@@ -143,9 +201,17 @@ class GitDifUI {
     async handleEditUrl(e) {
         e.preventDefault();
         const url = document.getElementById('editUrlInput').value;
-        const interval = parseInt(document.getElementById('editInterval').value) * 1e9; // Convert to nanoseconds for Go time.Duration
+        const interval = parseInt(document.getElementById('editInterval').value);
         const timeout = parseInt(document.getElementById('editTimeout').value);
         const status = document.getElementById('editStatus').value;
+        const notifyEnabled = this.editNotifyEnabled.checked;
+        
+        const notification = {
+            type: 'telegram',
+            token: document.getElementById('editNotifyToken').value,
+            chat_id: document.getElementById('editNotifyChatID').value,
+            enabled: notifyEnabled
+        };
 
         try {
             const response = await fetch('/api/edit-url', {
@@ -153,7 +219,7 @@ class GitDifUI {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ url, interval, timeout, status }),
+                body: JSON.stringify({ url, interval, timeout, status, notification }),
             });
 
             if (response.ok) {
@@ -223,16 +289,40 @@ class GitDifUI {
             const currentDomain = this.domainSelector.value;
             this.domainSelector.innerHTML = '<option value="">Select Domain</option>' + 
                 urls.map(urlInfo => `<option value="${urlInfo.url}">${urlInfo.url}</option>`).join('');
-            if (currentDomain) {
+            
+            // If there's no current selection but URLs exist, select the first one
+            if (!currentDomain && urls.length > 0) {
+                this.domainSelector.value = urls[0].url;
+                this.currentUrl = urls[0].url;
+                this.loadCommits();
+            } else if (currentDomain) {
                 this.domainSelector.value = currentDomain;
             }
             
-            this.urlList.innerHTML = urls.length ? urls.map(urlInfo => `
+            this.urlList.innerHTML = urls.length ? urls.map(urlInfo => {
+                // Add notification information to the data passed to edit button
+                const editData = {
+                    ...urlInfo,
+                    notification: urlInfo.notification || {
+                        type: 'telegram',
+                        token: '',
+                        chat_id: '',
+                        enabled: false
+                    }
+                };
+                
+                return `
                 <tr class="hover:bg-gray-50">
                     <td class="px-4 py-2 text-sm">
-                        <span class="text-blue-600">
-                            ${urlInfo.url}
-                        </span>
+                        <div>
+                            <span class="text-blue-600">
+                                ${urlInfo.url}
+                            </span>
+                            <div class="text-gray-500 text-xs mt-1">
+                                Interval: ${this.formatInterval(urlInfo.interval)}
+                                ${urlInfo.notification?.enabled ? '<span class="ml-2 text-green-600">🔔 Telegram</span>' : ''}
+                            </div>
+                        </div>
                     </td>
                     <td class="px-4 py-2 text-sm">
                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
@@ -241,7 +331,7 @@ class GitDifUI {
                         </span>
                     </td>
                     <td class="px-4 py-2 text-sm">
-                        <button data-edit='${JSON.stringify(urlInfo)}' 
+                        <button data-edit='${JSON.stringify(editData)}' 
                                 class="text-blue-600 hover:text-blue-800 mr-2">
                             Edit
                         </button>
@@ -251,7 +341,7 @@ class GitDifUI {
                         </button>
                     </td>
                 </tr>
-            `).join('') : '<tr><td colspan="3" class="text-center py-4">No URLs added yet</td></tr>';
+            `}).join('') : '<tr><td colspan="3" class="text-center py-4">No URLs added yet</td></tr>';
         } catch (error) {
             console.error('Error loading URLs:', error);
             this.urlList.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-red-600">Error loading URLs</td></tr>';
@@ -275,12 +365,12 @@ class GitDifUI {
             
             this.updatePagination(total);
             this.totalCommits.textContent = total;
-            this.lastChange.textContent = commits[0]?.date || 'Never';
+            this.lastChange.textContent = commits[0]?.date ? this.formatDate(commits[0].date) : 'Never';
             
             this.commitList.innerHTML = commits.length ? commits.map(commit => `
                 <tr class="hover:bg-gray-50">
                     <td class="px-6 py-4 whitespace-nowrap text-sm">
-                        ${new Date(commit.date).toLocaleString()}
+                        ${this.formatDate(commit.date)}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-mono">
                         ${commit.hash.substring(0, 8)}

@@ -147,6 +147,34 @@ func (w *JsWatcher) saveAndCommit(jsFiles []string) error {
 	}
 
 	log.Printf("Created commit for detected changes: %s", commit.String())
+
+	// Send Telegram notification if enabled
+	configs, err := loadWatcherConfigs()
+	if err != nil {
+		log.Printf("Error loading configs for notification: %v", err)
+		return nil
+	}
+
+	// Find config for this URL to get notification settings
+	for _, config := range configs {
+		if config.URL == w.url && config.Notification.Enabled && config.Notification.Type == "telegram" {
+			message := fmt.Sprintf(
+				"<b>🔔 Changes Detected!</b>\n\nURL: %s\nTimestamp: %s\nCommit: %s",
+				w.url,
+				time.Now().Format("2006-01-02 15:04:05"),
+				commit.String()[:8],
+			)
+			if err := sendTelegramNotification(
+				config.Notification.Token,
+				config.Notification.ChatID,
+				message,
+			); err != nil {
+				log.Printf("Error sending Telegram notification: %v", err)
+			}
+			break
+		}
+	}
+
 	return nil
 }
 

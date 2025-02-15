@@ -1,8 +1,14 @@
 [
     {
         "url": "http://localhost:8000",
-        "interval": 10000000000,
+        "interval": 60000000000,
         "status": "active",
-        "timeout": 30
+        "timeout": 30,
+        "notification": {
+            "type": "telegram",
+            "token": "8029240359:AAHNlUIaWk-LJK6mSnskS9VNsgfAHRz0aDU",
+            "chat_id": "8016345261",
+            "enabled": true
+        }
     }
 ]
