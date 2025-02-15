@@ -1,4 +1,4 @@
-# JSDif Watcher 🕵️‍♂️ V.1.0.0
+# JSDif Watcher 🕵️‍♂️ V.1.0.1
 
 ![Alt Text](showcase.gif)
 
