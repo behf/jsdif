@@ -274,15 +274,34 @@ func (w *JsWatcher) Start() {
 }
 
 func main() {
-	// Only web server port is required as a flag
-	webFlag := flag.String("web", ":9023", "Web UI address (e.g., :9023)")
+	var (
+		port string
+		cmd  string
+	)
+
+	// Setup CLI
+	flag.StringVar(&port, "p", "9023", "Web UI port (e.g., 9093)")
+
+	// Parse command line arguments
 	flag.Parse()
+
+	// Get the command (first argument after flags)
+	args := flag.Args()
+	if len(args) > 0 {
+		cmd = args[0]
+	}
+
+	// Validate command
+	if cmd != "run" {
+		fmt.Println("Usage: jsdif run -p PORT")
+		os.Exit(1)
+	}
 
 	// Create js_snapshots directory if it doesn't exist
 	if err := os.MkdirAll("js_snapshots", 0755); err != nil {
 		log.Fatalf("Failed to create js_snapshots directory: %v", err)
 	}
 
-	// Start web server (now handles watchers internally)
-	startWebServer(*webFlag)
+	// Start web server with provided port
+	startWebServer(":" + port)
 }

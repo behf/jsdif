@@ -1,52 +1,59 @@
-# WatchTover
+# JS-GitDif-Watcher 🕵️‍♂️ V.1.0.0
 
-A tool for monitoring changes in JavaScript files across websites. It tracks changes to JavaScript files by regularly downloading and comparing them against previous versions, storing snapshots in Git repositories for easy diffing and version control.
+A powerful JavaScript monitoring tool for bug bounty hunters. Track changes in JavaScript files across websites, detect new attack surfaces, and stay ahead of security vulnerabilities.
 
-## Features
+## 🎯 Features
 
-- Monitor JavaScript files from any website
-- Git-based version control of changes
-- Web UI for configuration
-- Telegram notifications for changes
-- Configurable monitoring intervals
-- Automatic retry and timeout mechanisms
+- 🔍 Monitor JavaScript files from any website
+- 📊 Git-based version control of changes
+- 🌐 Clean web UI for easy configuration
+- 🔔 Telegram notifications for instant alerts
+- ⚡ Configurable monitoring intervals
+- 🔄 Automatic retry and timeout mechanisms
+- 📝 Efficient diff viewing for quick analysis
 
-## Usage
 
-1. Start the web server:
-   ```bash
-   go run . -web :9023
-   ```
+## 🚀 Quick Start
 
-2. Access the web UI at `http://localhost:9023`
+### Installation
 
-3. Add URLs to monitor through the UI
+```bash
+go install github.com/mirzaaghazadeh/JS-GitDif-Watcher@latest
+```
 
-## Configuration
+### Usage
 
-All watcher configurations are stored in `watchers.json`. Each watcher can have:
+```bash
+jsdif run -p 9093
+```
 
-- URL to monitor
-- Check interval
-- Status (active/disabled)
-- Timeout settings
-- Telegram notification settings
+That's it! Access the web interface at `http://localhost:9093` to start monitoring your targets.
 
-## Development
+## 🔥 Bug Bounty Use Cases
 
-- **Go Version:** 1.21+
-- **Dependencies:** See `go.mod`
+- 🎯 Track new JavaScript endpoints and APIs
+- 🔑 Monitor for leaked sensitive information
+- 🛡️ Detect changes in security controls
+- 🚀 Find new features before they're officially released
+- ⚠️ Identify removed security checks
+- 📦 Track third-party script changes
+- 🔒 Monitor authentication/authorization changes
 
-## Credits
 
-Developed by:
-- Navid Mirzaagha ([GitHub](https://github.com/mirzaaghazadeh))
-- Website: [navid.tr](https://navid.tr/)
 
-## License
+## 🔨 Building from Source
+
+```bash
+git clone https://github.com/mirzaaghazadeh/JS-GitDif-Watcher.git
+cd JS-GitDif-Watcher
+go build -o jsdif
+```
+
+
+## 📝 License
 
 This project is open source. Feel free to use and contribute!
 
 ---
 
-**Note:** This tool is intended for bug bounty hunting and security research purposes. Please use responsibly.
+**⚠️ Note:** This tool is intended for bug bounty hunting and security research. Use responsibly and follow program policies.

@@ -10,6 +10,10 @@ import (
 	"time"
 
 	"github.com/watchtover-gitdif/watcher"
+
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
 var (
@@ -40,6 +44,9 @@ func startWebServer(addr string) {
 	http.HandleFunc("/api/update-status", handleUpdateStatus)
 	http.HandleFunc("/api/add-url", handleAddUrl)
 	http.HandleFunc("/api/edit-url", handleEditUrl)
+	http.HandleFunc("/api/delete-url", handleDeleteUrl)
+	http.HandleFunc("/api/commits", handleCommits)
+	http.HandleFunc("/api/diff", handleDiff)
 
 	// Serve static files
 	http.Handle("/", http.FileServer(http.Dir("web")))
@@ -138,6 +145,194 @@ func handleUpdateStatus(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func handleDiff(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	url := r.URL.Query().Get("url")
+	commitHash := r.URL.Query().Get("commit")
+	if url == "" || commitHash == "" {
+		http.Error(w, "URL and commit parameters required", http.StatusBadRequest)
+		return
+	}
+
+	// Find the watcher for this URL
+	watchersMutex.Lock()
+	jsw, exists := activeWatchers[url]
+	watchersMutex.Unlock()
+
+	if !exists {
+		http.Error(w, "Watcher not found for URL", http.StatusNotFound)
+		return
+	}
+
+	repo, err := git.PlainOpen(jsw.gitRepoDir)
+	if err != nil {
+		http.Error(w, "Failed to open git repository", http.StatusInternalServerError)
+		return
+	}
+
+	// Get commit object
+	hash := plumbing.NewHash(commitHash)
+	commit, err := repo.CommitObject(hash)
+	if err != nil {
+		http.Error(w, "Failed to get commit", http.StatusInternalServerError)
+		return
+	}
+
+	// Get parent commit
+	parent, err := commit.Parent(0)
+	if err != nil && err != object.ErrParentNotFound {
+		http.Error(w, "Failed to get parent commit", http.StatusInternalServerError)
+		return
+	}
+
+	// Get commit trees
+	currentTree, err := commit.Tree()
+	if err != nil {
+		http.Error(w, "Failed to get commit tree", http.StatusInternalServerError)
+		return
+	}
+
+	var patch *object.Patch
+	if parent == nil {
+		// For first commit, create empty tree for comparison
+		emptyTree := &object.Tree{}
+		patch, err = currentTree.Patch(emptyTree)
+	} else {
+		parentTree, err := parent.Tree()
+		if err != nil {
+			http.Error(w, "Failed to get parent tree", http.StatusInternalServerError)
+			return
+		}
+		patch, err = parentTree.Patch(currentTree)
+	}
+
+	if err != nil {
+		http.Error(w, "Failed to get diff", http.StatusInternalServerError)
+		return
+	}
+
+	// Return the unified diff format
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write([]byte(patch.String()))
+}
+
+func handleDeleteUrl(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	url := r.URL.Query().Get("url")
+	if url == "" {
+		http.Error(w, "URL parameter required", http.StatusBadRequest)
+		return
+	}
+
+	configs, err := watcher.LoadWatcherConfigs()
+	if err != nil {
+		http.Error(w, "Failed to load configurations", http.StatusInternalServerError)
+		return
+	}
+
+	// Find and remove the URL config
+	found := false
+	newConfigs := make([]watcher.WatcherConfig, 0, len(configs))
+	for _, c := range configs {
+		if c.URL == url {
+			found = true
+			continue
+		}
+		newConfigs = append(newConfigs, c)
+	}
+
+	if !found {
+		http.Error(w, "URL not found", http.StatusNotFound)
+		return
+	}
+
+	if err := watcher.SaveWatcherConfigs(newConfigs); err != nil {
+		http.Error(w, "Failed to save configurations", http.StatusInternalServerError)
+		return
+	}
+
+	// Stop and remove watcher if active
+	watchersMutex.Lock()
+	if watcher, exists := activeWatchers[url]; exists {
+		watcher.Stop()
+		delete(activeWatchers, url)
+	}
+	watchersMutex.Unlock()
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func handleCommits(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	url := r.URL.Query().Get("url")
+	if url == "" {
+		http.Error(w, "URL parameter required", http.StatusBadRequest)
+		return
+	}
+
+	// Find the watcher for this URL
+	watchersMutex.Lock()
+	jsw, exists := activeWatchers[url]
+	watchersMutex.Unlock()
+
+	if !exists {
+		http.Error(w, "Watcher not found for URL", http.StatusNotFound)
+		return
+	}
+
+	repo, err := git.PlainOpen(jsw.gitRepoDir)
+	if err != nil {
+		if err == git.ErrRepositoryNotExists {
+			// Return empty commits list if repo doesn't exist yet
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"commits": []interface{}{},
+				"total":   0,
+			})
+			return
+		}
+		http.Error(w, "Failed to open git repository", http.StatusInternalServerError)
+		return
+	}
+
+	// Get commit history
+	commits, err := repo.Log(&git.LogOptions{})
+	if err != nil {
+		http.Error(w, "Failed to get commit history", http.StatusInternalServerError)
+		return
+	}
+
+	var commitsList []map[string]interface{}
+	err = commits.ForEach(func(c *object.Commit) error {
+		commitsList = append(commitsList, map[string]interface{}{
+			"hash": c.Hash.String(),
+			"date": c.Author.When,
+		})
+		return nil
+	})
+
+	if err != nil {
+		http.Error(w, "Failed to process commits", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"commits": commitsList,
+		"total":   len(commitsList),
+	})
+}
+
 func handleAddUrl(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -191,9 +386,29 @@ func handleAddUrl(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Start the new watcher if status is active
+	// Create and start the new watcher if status is active
 	if config.Status == "active" {
-		startWatcher(config.URL, config.Interval)
+		jsw := NewJsWatcher(config.URL, config.Interval)
+		jsw.timeout = config.Timeout
+		jsw.status = config.Status
+		activeWatchers[config.URL] = jsw
+
+		// Start regular monitoring
+		go jsw.Start()
+
+		// Perform initial check
+		go func() {
+			jsFiles, err := jsw.fetchJsFiles()
+			if err != nil {
+				log.Printf("Error in initial fetch for %s: %v", config.URL, err)
+				return
+			}
+			if len(jsFiles) > 0 {
+				if err := jsw.saveAndCommit(jsFiles); err != nil {
+					log.Printf("Error in initial commit for %s: %v", config.URL, err)
+				}
+			}
+		}()
 
 		// Send initial notification if enabled
 		if config.Notification.Enabled && config.Notification.Type == "telegram" {
@@ -272,11 +487,11 @@ func handleEditUrl(w http.ResponseWriter, r *http.Request) {
 		delete(activeWatchers, newConfig.URL)
 		// Start new watcher with updated config if status is active
 		if newConfig.Status == "active" {
-			watcher := NewJsWatcher(newConfig.URL, newConfig.Interval)
-			watcher.timeout = newConfig.Timeout
-			watcher.status = newConfig.Status
-			activeWatchers[newConfig.URL] = watcher
-			go watcher.Start()
+			jsw := NewJsWatcher(newConfig.URL, newConfig.Interval)
+			jsw.timeout = newConfig.Timeout
+			jsw.status = newConfig.Status
+			activeWatchers[newConfig.URL] = jsw
+			go jsw.Start()
 		}
 	}
 	watchersMutex.Unlock()
