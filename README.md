@@ -20,7 +20,7 @@ A powerful JavaScript monitoring tool for bug bounty hunters. Track changes in J
 ### Installation
 
 ```bash
-go install github.com/mirzaaghazadeh/JS-GitDif-Watcher@latest
+go install github.com/mirzaaghazadeh/JS-GitDif-Watcher@1.0.0
 ```
 
 ### Usage
