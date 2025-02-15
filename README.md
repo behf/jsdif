@@ -20,7 +20,7 @@ A powerful JavaScript monitoring tool for bug bounty hunters. Track changes in J
 ### Installation
 
 ```bash
-go install github.com/mirzaaghazadeh/JS-GitDif-Watcher@1.0.0
+go install github.com/mirzaaghazadeh/jsdif@1.0.0
 ```
 
 ### Usage
@@ -46,7 +46,7 @@ That's it! Access the web interface at `http://localhost:9093` to start monitori
 ## 🔨 Building from Source
 
 ```bash
-git clone https://github.com/mirzaaghazadeh/JS-GitDif-Watcher.git
+git clone https://github.com/mirzaaghazadeh/jsdif.git
 cd JS-GitDif-Watcher
 go build -o jsdif
 ```
