@@ -1,0 +1,258 @@
+package main
+
+import (
+	"flag"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/PuerkitoBio/goquery"
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing/object"
+)
+
+type JsWatcher struct {
+	url        string
+	interval   time.Duration
+	gitRepoDir string
+	timeout    int
+	status     string
+	stopChan   chan struct{}
+}
+
+func NewJsWatcher(url string, interval time.Duration) *JsWatcher {
+	// Create a sanitized directory name from the URL
+	dirName := strings.ReplaceAll(strings.TrimPrefix(strings.TrimPrefix(url, "http://"), "https://"), "/", "_")
+	gitRepoDir := filepath.Join("js_snapshots", dirName)
+
+	return &JsWatcher{
+		url:        url,
+		interval:   interval,
+		gitRepoDir: gitRepoDir,
+		status:     "active",
+		timeout:    0,
+		stopChan:   make(chan struct{}),
+	}
+}
+
+func (w *JsWatcher) fetchJsContent(jsURL string) (string, error) {
+	resp, err := http.Get(jsURL)
+	if err != nil {
+		return "", fmt.Errorf("error fetching JS from %s: %w", jsURL, err)
+	}
+	defer resp.Body.Close()
+
+	content, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("error reading JS content: %w", err)
+	}
+
+	return string(content), nil
+}
+
+func (w *JsWatcher) initGitRepo() (*git.Repository, error) {
+	// Create directory if it doesn't exist
+	if err := os.MkdirAll(w.gitRepoDir, 0755); err != nil {
+		return nil, fmt.Errorf("error creating directory: %w", err)
+	}
+
+	// Initialize or open git repository
+	repo, err := git.PlainOpen(w.gitRepoDir)
+	if err == git.ErrRepositoryNotExists {
+		repo, err = git.PlainInit(w.gitRepoDir, false)
+		if err != nil {
+			return nil, fmt.Errorf("error initializing git repo: %w", err)
+		}
+	} else if err != nil {
+		return nil, fmt.Errorf("error opening git repo: %w", err)
+	}
+
+	return repo, nil
+}
+
+func (w *JsWatcher) saveAndCommit(jsFiles []string) error {
+	repo, err := w.initGitRepo()
+	if err != nil {
+		return err
+	}
+
+	// Combine JS files without timestamp for comparison
+	var jsContent strings.Builder
+	for i, js := range jsFiles {
+		jsContent.WriteString(fmt.Sprintf("/* JS File #%d */\n%s\n\n", i+1, js))
+	}
+	newContent := jsContent.String()
+
+	// Write to file
+	jsFile := filepath.Join(w.gitRepoDir, "combined.js")
+
+	// Check if content has changed (ignoring timestamp)
+	currentContent, err := os.ReadFile(jsFile)
+	if err == nil {
+		// Remove timestamp line from current content for comparison
+		currentLines := strings.SplitN(string(currentContent), "\n\n", 2)
+		if len(currentLines) > 1 && currentLines[1] == newContent {
+			log.Println("No changes detected in JS files")
+			return nil
+		}
+	}
+
+	// Add timestamp only when writing
+	var finalContent strings.Builder
+	finalContent.WriteString(fmt.Sprintf("/* Last updated: %s */\n\n", time.Now().Format("2006-01-02 15:04:05")))
+	finalContent.WriteString(newContent)
+
+	if err := os.WriteFile(jsFile, []byte(finalContent.String()), 0644); err != nil {
+		return fmt.Errorf("error writing combined JS: %w", err)
+	}
+
+	// Get the worktree
+	worktree, err := repo.Worktree()
+	if err != nil {
+		return fmt.Errorf("error getting worktree: %w", err)
+	}
+
+	// Add changes
+	if _, err := worktree.Add("combined.js"); err != nil {
+		return fmt.Errorf("error adding file to git: %w", err)
+	}
+
+	// Check if there are actual changes to commit
+	status, err := worktree.Status()
+	if err != nil {
+		return fmt.Errorf("error getting git status: %w", err)
+	}
+
+	if status.IsClean() {
+		log.Println("No changes to commit")
+		return nil
+	}
+
+	// Create commit
+	commit, err := worktree.Commit(fmt.Sprintf("JS snapshot %s", time.Now().Format("2006-01-02 15:04:05")), &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  "WatchTover",
+			Email: "watchtover@localhost",
+			When:  time.Now(),
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("error creating commit: %w", err)
+	}
+
+	log.Printf("Created commit for detected changes: %s", commit.String())
+	return nil
+}
+
+func (w *JsWatcher) fetchJsFiles() ([]string, error) {
+	// Get the main page
+	resp, err := http.Get(w.url)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching main page: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Parse HTML
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing HTML: %w", err)
+	}
+
+	var jsFiles []string
+	// Find all script tags
+	doc.Find("script[src]").Each(func(i int, s *goquery.Selection) {
+		if src, exists := s.Attr("src"); exists {
+			// Handle relative URLs
+			jsURL := src
+			if strings.HasPrefix(src, "//") {
+				jsURL = "http:" + src
+			} else if !strings.HasPrefix(src, "http") {
+				jsURL = fmt.Sprintf("%s/%s", strings.TrimSuffix(w.url, "/"), strings.TrimPrefix(src, "/"))
+			}
+
+			if content, err := w.fetchJsContent(jsURL); err == nil {
+				jsFiles = append(jsFiles, content)
+			} else {
+				log.Printf("Error fetching JS from %s: %v", jsURL, err)
+			}
+		}
+	})
+
+	return jsFiles, nil
+}
+
+func (w *JsWatcher) Stop() {
+	close(w.stopChan)
+}
+
+func (w *JsWatcher) Start() {
+	log.Printf("Starting JS watcher for %s (checking every %v)", w.url, w.interval)
+	log.Printf("Git repository: %s", w.gitRepoDir)
+
+	ticker := time.NewTicker(w.interval)
+	defer ticker.Stop()
+
+	failureCount := 0
+
+	for {
+		select {
+		case <-w.stopChan:
+			log.Printf("Stopping watcher for %s", w.url)
+			return
+		case <-ticker.C:
+			log.Printf("\nChecking for JS changes at %s", time.Now().Format("2006-01-02 15:04:05"))
+
+			jsFiles, err := w.fetchJsFiles()
+			if err != nil {
+				log.Printf("Error fetching JS files: %v", err)
+				failureCount++
+				if w.timeout > 0 && failureCount >= w.timeout {
+					log.Printf("Timeout reached for %s after %d failures", w.url, failureCount)
+					w.status = "disabled"
+					// Update status in configuration
+					client := &http.Client{}
+					urlStr := fmt.Sprintf("http://localhost:9023/api/update-status?url=%s&status=disabled", url.QueryEscape(w.url))
+					req, err := http.NewRequest(http.MethodPut, urlStr, nil)
+					if err == nil {
+						if _, err := client.Do(req); err != nil {
+							log.Printf("Error updating status: %v", err)
+						}
+					}
+					return
+				}
+				continue
+			}
+
+			failureCount = 0 // Reset counter on successful fetch
+
+			if len(jsFiles) == 0 {
+				log.Println("No JS files found")
+				continue
+			}
+
+			if err := w.saveAndCommit(jsFiles); err != nil {
+				log.Printf("Error saving and committing: %v", err)
+			}
+		}
+	}
+}
+
+func main() {
+	// Only web server port is required as a flag
+	webFlag := flag.String("web", ":9023", "Web UI address (e.g., :9023)")
+	flag.Parse()
+
+	// Create js_snapshots directory if it doesn't exist
+	if err := os.MkdirAll("js_snapshots", 0755); err != nil {
+		log.Fatalf("Failed to create js_snapshots directory: %v", err)
+	}
+
+	// Start web server (now handles watchers internally)
+	startWebServer(*webFlag)
+}

@@ -1,0 +1,8 @@
+[
+    {
+        "url": "http://localhost:8000",
+        "interval": 10000000000,
+        "status": "active",
+        "timeout": 30
+    }
+]

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JS GitDif Watcher</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/diff2html@3.4.41/bundles/js/diff2html.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/diff2html@3.4.41/bundles/css/diff2html.min.css">
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold mb-8">JS GitDif Watcher</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <!-- Stats -->
+            <div class="bg-white p-4 rounded-lg shadow">
+                <h3 class="font-semibold mb-2">Total Commits</h3>
+                <p id="totalCommits" class="text-2xl">-</p>
+            </div>
+            <div class="bg-white p-4 rounded-lg shadow">
+                <h3 class="font-semibold mb-2">Last Change</h3>
+                <p id="lastChange" class="text-2xl">-</p>
+            </div>
+            <div class="bg-white p-4 rounded-lg shadow">
+                <h3 class="font-semibold mb-2">Monitored URLs</h3>
+                <div class="space-y-2">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full table-auto">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">URL</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="urlList">
+                                <tr><td colspan="3" class="text-center py-4">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <button id="addUrlBtn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded text-sm w-full">
+                        Add New URL
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-4 mb-8">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold">Recent Changes</h2>
+                <select id="domainSelector" class="border rounded px-3 py-1">
+                    <option value="">Select Domain</option>
+                </select>
+            </div>
+
+            <!-- Add URL Modal -->
+            <div id="addUrlModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+                    <h3 class="text-lg font-semibold mb-4">Add New URL to Monitor</h3>
+                    <form id="addUrlForm" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">URL</label>
+                            <input type="url" id="newUrl" required class="w-full p-2 border rounded" placeholder="http://localhost:8000">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Check Interval (seconds)</label>
+                            <input type="number" id="newInterval" required min="1" value="10" class="w-full p-2 border rounded">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Timeout (seconds)</label>
+                            <input type="number" id="newTimeout" required min="1" value="30" class="w-full p-2 border rounded">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Status</label>
+                            <select id="newStatus" class="w-full p-2 border rounded">
+                                <option value="active">Active</option>
+                                <option value="disabled">Disabled</option>
+                            </select>
+                        </div>
+                        <div class="flex justify-end space-x-2">
+                            <button type="button" id="cancelAddUrl" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm">Cancel</button>
+                            <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm">Add URL</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Edit URL Modal -->
+            <div id="editUrlModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+                    <h3 class="text-lg font-semibold mb-4">Edit URL</h3>
+                    <form id="editUrlForm" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">URL</label>
+                            <input type="url" id="editUrlInput" required class="w-full p-2 border rounded" readonly>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Check Interval (seconds)</label>
+                            <input type="number" id="editInterval" required min="1" class="w-full p-2 border rounded">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Timeout (seconds)</label>
+                            <input type="number" id="editTimeout" required min="1" class="w-full p-2 border rounded">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Status</label>
+                            <select id="editStatus" class="w-full p-2 border rounded">
+                                <option value="active">Active</option>
+                                <option value="disabled">Disabled</option>
+                            </select>
+                        </div>
+                        <div class="flex justify-end space-x-2">
+                            <button type="button" id="cancelEditUrl" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm">Cancel</button>
+                            <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Diff View Modal -->
+            <div id="diffModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white p-6 rounded-lg shadow-lg w-11/12 max-h-[90vh] overflow-y-auto">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold">Changes</h3>
+                        <button id="closeDiffModal" class="text-gray-500 hover:text-gray-700">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="diffViewContent"></div>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto" id="commitListContainer">
+                <table class="min-w-full table-auto">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Commit</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="commitList" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="3" class="px-6 py-4 text-center">Select a domain to view commits</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        <div class="flex justify-between items-center mt-4 px-6 py-3 border-t">
+            <div class="text-sm text-gray-500">
+                Showing <span id="pageInfo">-</span>
+            </div>
+            <div class="space-x-2">
+                <button id="prevPage" class="px-3 py-1 border rounded text-sm disabled:opacity-50">Previous</button>
+                <button id="nextPage" class="px-3 py-1 border rounded text-sm disabled:opacity-50">Next</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+</html>
