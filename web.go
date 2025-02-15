@@ -1,4 +1,4 @@
-ثpackage main
+package main
 
 import (
 	"encoding/json"
