@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"path/filepath"
 	"sort"
 	"sync"
 	"time"
@@ -51,8 +52,9 @@ func startWebServer(addr string, port string) {
 	http.HandleFunc("/api/commits", handleCommits)
 	http.HandleFunc("/api/diff", handleDiff)
 
-	// Serve static files
-	http.Handle("/", http.FileServer(http.Dir("web")))
+	// Serve static files from the web directory using OS-agnostic path
+	webDir := http.Dir(filepath.Join(".", "web"))
+	http.Handle("/", http.FileServer(webDir))
 
 	// log.Printf("%s", addr)
 	log.Fatal(http.ListenAndServe(addr, nil))
