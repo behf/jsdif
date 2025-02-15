@@ -1,4 +1,4 @@
-# JS GitDif Watcher 🕵️‍♂️ V.1.0.0
+# JSDif Watcher 🕵️‍♂️ V.1.0.0
 
 ![Alt Text](showcase.gif)
 
