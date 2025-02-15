@@ -18,13 +18,39 @@ A powerful JavaScript monitoring tool for bug bounty hunters. Track changes in J
 
 ## 🚀 Quick Start
 
-### Requirements
+### Docker Installation (Recommended)
+
+The easiest way to run JSDif is using Docker:
+
+```bash
+# Clone the repository
+git clone https://github.com/mirzaaghazadeh/jsdif.git
+cd jsdif
+
+# Start with Docker Compose
+docker compose up -d
+```
+
+Access the web interface at `http://localhost:9093`
+
+For detailed Docker setup instructions including:
+- Authentication configuration
+- Custom port configuration
+- Data persistence management
+- Container management
+- Troubleshooting guide
+
+👉 See [DOCKER.md](DOCKER.md)
+
+### Manual Installation
+
+#### Requirements
 
 - Go 1.20 or higher
 - Git installed and accessible from PATH
 - Linux, macOS, or Windows operating system
 
-### Installation
+#### Installation
 
 ```bash
 go install github.com/mirzaaghazadeh/jsdif@latest

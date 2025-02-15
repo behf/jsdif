@@ -1,0 +1,16 @@
+version: '3'
+
+services:
+  jsdif:
+    build: .
+    ports:
+      - "9093:9093"
+    volumes:
+      - js_snapshots:/app/js_snapshots
+    environment:
+      - TZ=UTC
+    # Optional: Uncomment and modify these for authentication
+    # command: ["-u", "admin", "--password", "secret", "run"]
+
+volumes:
+  js_snapshots:
