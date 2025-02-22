@@ -318,8 +318,8 @@ class GitDifUI {
                 return `
                 <tr class="hover:bg-gray-50">
                     <td class="px-4 py-2 text-sm">
-                        <div>
-                            <span class="text-blue-600">
+                        <div class="max-w-[200px] md:max-w-none overflow-hidden">
+                            <span class="text-blue-600 break-all">
                                 ${urlInfo.url}
                             </span>
                             <div class="text-gray-500 text-xs mt-1">
@@ -328,21 +328,23 @@ class GitDifUI {
                             </div>
                         </div>
                     </td>
-                    <td class="px-4 py-2 text-sm">
+                    <td class="px-4 py-2 text-sm w-24">
                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                             ${urlInfo.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">
                             ${urlInfo.status}
                         </span>
                     </td>
-                    <td class="px-4 py-2 text-sm">
-                        <button data-edit='${JSON.stringify(editData)}' 
-                                class="text-blue-600 hover:text-blue-800 mr-2">
-                            Edit
-                        </button>
-                        <button data-delete="${urlInfo.url}"
-                                class="text-red-600 hover:text-red-800">
-                            Delete
-                        </button>
+                    <td class="px-4 py-2 text-sm w-32">
+                        <div class="flex space-x-2">
+                            <button data-edit='${JSON.stringify(editData)}' 
+                                    class="bg-blue-100 text-blue-600 hover:bg-blue-200 px-2 py-1 rounded">
+                                Edit
+                            </button>
+                            <button data-delete="${urlInfo.url}"
+                                    class="bg-red-100 text-red-600 hover:bg-red-200 px-2 py-1 rounded">
+                                Delete
+                            </button>
+                        </div>
                     </td>
                 </tr>
             `}).join('') : '<tr><td colspan="3" class="text-center py-4">No URLs added yet</td></tr>';
