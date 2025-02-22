@@ -235,7 +235,12 @@ class GitDifUI {
                 this.hideEditUrlModal();
                 this.loadUrls();
             } else {
-                alert('Failed to update URL');
+                const errorText = await response.text();
+                if (response.status === 400) {
+                    alert(errorText);
+                } else {
+                    alert('Failed to update URL: ' + errorText);
+                }
             }
         } catch (error) {
             console.error('Error updating URL:', error);

@@ -53,6 +53,22 @@ func SaveWatcherConfigs(configs []WatcherConfig) error {
 	return os.WriteFile("watchers.json", data, 0644)
 }
 
+// IsURLDuplicate checks if a URL already exists in the watchers configuration
+func IsURLDuplicate(url string) (bool, error) {
+	configs, err := LoadWatcherConfigs()
+	if err != nil {
+		return false, fmt.Errorf("failed to load configurations: %w", err)
+	}
+
+	for _, config := range configs {
+		if config.URL == url {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
 // SendTelegramNotification sends a notification via Telegram bot API
 func SendTelegramNotification(token string, chatID string, message string) error {
 	baseURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", token)

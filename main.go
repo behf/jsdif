@@ -19,13 +19,14 @@ import (
 )
 
 type JsWatcher struct {
-	url        string
-	interval   time.Duration
-	gitRepoDir string
-	timeout    int
-	status     string
-	stopChan   chan struct{}
-	port       string
+	url          string
+	interval     time.Duration
+	gitRepoDir   string
+	timeout      int
+	status       string
+	stopChan     chan struct{}
+	port         string
+	isDirectFile bool
 }
 
 func NewJsWatcher(url string, interval time.Duration, port string) *JsWatcher {
@@ -33,14 +34,17 @@ func NewJsWatcher(url string, interval time.Duration, port string) *JsWatcher {
 	dirName := strings.ReplaceAll(strings.TrimPrefix(strings.TrimPrefix(url, "http://"), "https://"), "/", "_")
 	gitRepoDir := filepath.Join("js_snapshots", dirName)
 
+	isDirectFile := strings.HasSuffix(strings.ToLower(url), ".js")
+
 	return &JsWatcher{
-		url:        url,
-		interval:   interval,
-		gitRepoDir: gitRepoDir,
-		status:     "active",
-		timeout:    0,
-		stopChan:   make(chan struct{}),
-		port:       port,
+		url:          url,
+		interval:     interval,
+		gitRepoDir:   gitRepoDir,
+		status:       "active",
+		timeout:      0,
+		stopChan:     make(chan struct{}),
+		port:         port,
+		isDirectFile: isDirectFile,
 	}
 }
 
@@ -182,7 +186,16 @@ func (w *JsWatcher) saveAndCommit(jsFiles []string) error {
 }
 
 func (w *JsWatcher) fetchJsFiles() ([]string, error) {
-	// Get the main page
+	if w.isDirectFile {
+		// Direct .js file URL - fetch it directly
+		content, err := w.fetchJsContent(w.url)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching direct JS file: %w", err)
+		}
+		return []string{content}, nil
+	}
+
+	// Regular website URL - scan for JS files
 	resp, err := http.Get(w.url)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching main page: %w", err)
