@@ -194,7 +194,12 @@ class GitDifUI {
                 document.getElementById('newNotifyChatID').value = '';
                 this.newNotifyFields.style.display = 'none';
             } else {
-                alert('Failed to add URL');
+                const errorText = await response.text();
+                if (response.status === 409) {
+                    alert(errorText);
+                } else {
+                    alert('Failed to add URL: ' + errorText);
+                }
             }
         } catch (error) {
             console.error('Error adding URL:', error);

@@ -404,7 +404,7 @@ func handleAddUrl(w http.ResponseWriter, r *http.Request) {
 	// Check if URL already exists
 	for _, c := range configs {
 		if c.URL == config.URL {
-			http.Error(w, "URL already being monitored", http.StatusBadRequest)
+			http.Error(w, "This URL is already being monitored. Please use a different URL or edit the existing entry.", http.StatusConflict)
 			return
 		}
 	}
