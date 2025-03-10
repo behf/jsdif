@@ -60,7 +60,9 @@ func IsURLDuplicate(url string) (bool, error) {
 		return false, fmt.Errorf("failed to load configurations: %w", err)
 	}
 
+	// Import the normalizeURL function from main package
 	for _, config := range configs {
+		// Compare normalized URLs to ensure consistency
 		if config.URL == url {
 			return true, nil
 		}
