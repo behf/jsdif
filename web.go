@@ -123,7 +123,7 @@ func handleUpdateStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	url := r.URL.Query().Get("url")
+	url := normalizeURL(r.URL.Query().Get("url"))
 	status := r.URL.Query().Get("status")
 
 	if url == "" || status == "" {
@@ -165,7 +165,7 @@ func handleDiff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	url := r.URL.Query().Get("url")
+	url := normalizeURL(r.URL.Query().Get("url"))
 	commitHash := r.URL.Query().Get("commit")
 	if url == "" || commitHash == "" {
 		http.Error(w, "URL and commit parameters required", http.StatusBadRequest)
@@ -197,7 +197,7 @@ func handleDeleteUrl(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	url := r.URL.Query().Get("url")
+	url := normalizeURL(r.URL.Query().Get("url"))
 	if url == "" {
 		http.Error(w, "URL parameter required", http.StatusBadRequest)
 		return
@@ -245,7 +245,7 @@ func handleCommits(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	url := r.URL.Query().Get("url")
+	url := normalizeURL(r.URL.Query().Get("url"))
 	if url == "" {
 		http.Error(w, "URL parameter required", http.StatusBadRequest)
 		return
@@ -290,13 +290,16 @@ func handleAddUrl(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := isValidURL(rawConfig.URL); err != nil {
+	// Normalize URL by removing trailing slashes
+	normalizedURL := normalizeURL(rawConfig.URL)
+
+	if err := isValidURL(normalizedURL); err != nil {
 		http.Error(w, fmt.Sprintf("Invalid URL: %s", err.Error()), http.StatusBadRequest)
 		return
 	}
 
 	config := watcher.WatcherConfig{
-		URL:          rawConfig.URL,
+		URL:          normalizedURL,
 		Interval:     time.Duration(rawConfig.Interval) * time.Minute,
 		Status:       rawConfig.Status,
 		Timeout:      rawConfig.Timeout,
@@ -385,13 +388,16 @@ func handleEditUrl(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := isValidURL(rawConfig.URL); err != nil {
+	// Normalize URL by removing trailing slashes
+	normalizedURL := normalizeURL(rawConfig.URL)
+
+	if err := isValidURL(normalizedURL); err != nil {
 		http.Error(w, fmt.Sprintf("Invalid URL: %s", err.Error()), http.StatusBadRequest)
 		return
 	}
 
 	newConfig := watcher.WatcherConfig{
-		URL:          rawConfig.URL,
+		URL:          normalizedURL,
 		Interval:     time.Duration(rawConfig.Interval) * time.Minute,
 		Status:       rawConfig.Status,
 		Timeout:      rawConfig.Timeout,
