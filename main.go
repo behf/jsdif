@@ -289,13 +289,14 @@ func (w *JsWatcher) Start() {
 
 func main() {
 	// Define flags
-	port := "9093" // default port
+	host := "0.0.0.0" // default host
+	port := "9093"    // default port
 	var username, password string
 
 	// Check arguments
 	args := os.Args[1:]
 	if len(args) == 0 {
-		fmt.Println("Usage: jsdif [-p PORT] [-u USERNAME] [-p PASSWORD] run")
+		fmt.Println("Usage: jsdif [-h HOST] [-p PORT] [-u USERNAME] [-p PASSWORD] run")
 		os.Exit(1)
 	}
 
@@ -303,6 +304,13 @@ func main() {
 	var foundRun bool
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
+		case "-h", "--host":
+			if i+1 >= len(args) || args[i+1] == "run" || strings.HasPrefix(args[i+1], "-") {
+				fmt.Println("Invalid host value")
+				os.Exit(1)
+			}
+			host = args[i+1]
+			i++ // Skip the value
 		case "-p":
 			if i+1 >= len(args) || args[i+1] == "run" || strings.HasPrefix(args[i+1], "-") {
 				fmt.Println("Invalid port value")
@@ -341,5 +349,5 @@ func main() {
 
 	// Debug message to ensure the correct port
 	log.Printf("Starting web server on port %s", port)
-	startWebServer(":"+port, port, username, password)
+	startWebServer(host+":"+port, port, username, password)
 }
