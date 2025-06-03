@@ -24,7 +24,7 @@ The easiest way to run JSDif is using Docker:
 
 ```bash
 # Clone the repository
-git clone https://github.com/mirzaaghazadeh/jsdif.git
+git clone https://github.com/behf/jsdif.git
 cd jsdif
 
 # Start with Docker Compose
@@ -53,7 +53,7 @@ For detailed Docker setup instructions including:
 #### Installation
 
 ```bash
-go install github.com/mirzaaghazadeh/jsdif@latest
+go install github.com/behf/jsdif@latest
 ```
 
 ### Usage
@@ -111,7 +111,7 @@ Access the web interface at `http://localhost:9093` to start monitoring your tar
 ## 🔨 Building from Source
 
 ```bash
-git clone https://github.com/mirzaaghazadeh/jsdif.git
+git clone https://github.com/behf/jsdif.git
 cd jsdif
 go build -o jsdif
 ```

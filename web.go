@@ -11,7 +11,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/mirzaaghazadeh/jsdif/watcher"
+	"github.com/behf/jsdif/watcher"
 )
 
 //go:embed web

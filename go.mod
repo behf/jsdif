@@ -1,4 +1,4 @@
-module github.com/mirzaaghazadeh/jsdif
+module github.com/behf/jsdif
 
 go 1.21
 

@@ -6,7 +6,7 @@ This guide explains how to run and configure JSDif using Docker.
 
 ```bash
 # Clone the repository
-git clone https://github.com/mirzaaghazadeh/jsdif.git
+git clone https://github.com/behf/jsdif.git
 cd jsdif
 
 # Start the container
